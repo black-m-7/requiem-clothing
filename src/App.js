@@ -1,6 +1,10 @@
 import './App.css';
 import logo from './assets/logo.png'
 import image1 from './assets/1.jpg'
+import boxLogo from './assets/box-logo.png'
+import logoV2 from './assets/logo-v2.png'
+import mercurial from './assets/mercurial.png'
+import { useState } from 'react'
 import { 
   BrowserRouter,
   Routes,
@@ -10,6 +14,10 @@ import {
   AppBar,
   Button,
   Box,
+  Card,
+  CardActionArea,
+  CardContent,
+  CardMedia,
   Container,
   Typography,
   Toolbar } from '@mui/material'
@@ -25,7 +33,7 @@ const theme = createTheme({
     },
     text: {
       primary: '#000000',
-      secondary: '#FFFFFF',
+      secondary: '#9D9D9D',
     },
     info: {
       main: '#FFFFFF'
@@ -33,20 +41,46 @@ const theme = createTheme({
   }
 })
 const pages = ['home', 'shop', 'lookbook']
+const products = [
+  {
+    id: '001',
+    name: 'BOX LOGO',
+    collection: 'basic',
+    imageUrl: boxLogo,
+    price: 570
+  },
+  {
+    id: '002',
+    name: 'LOGO V2',
+    collection: 'basic',
+    imageUrl: logoV2,
+    price: 470
+  },
+  {
+    id: '003',
+    name: 'MERCURIAL',
+    collection: 'statement',
+    imageUrl: mercurial,
+    price: 570
+  }
+]
 
 function App() {
+  const cart = JSON.parse(localStorage.getItem('cart')) || []
+
   return (
     <ThemeProvider theme={theme}>
       <div className="App">
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={<Home/>}/>
-            <Route path="/shop" element={<Shop/>}/>
-            <Route path="/lookbook" element={<Lookbook/>}/>
+            <Route path="/" element={<Home cartCount={cart.length}/>}/>
+            <Route path="/shop" element={<Shop cartCount={cart.length}/>}/>
+            <Route path="/lookbook" element={<Lookbook cartCount={cart.length}/>}/>
             <Route path="/cart" element={<Cart/>}/>
             <Route path="/checkout" element={<Checkout/>}/>
           </Routes>
         </BrowserRouter>
+        
       </div>
     </ThemeProvider>
   );
@@ -88,13 +122,14 @@ function HeaderNav(props) {
 
 function Footer() {}
 
-function Home() {
+function Home(props) {
+  const {cartCount} = props
   return (
     <div>
-      <HeaderNav cartCount={2} active="home"/>
+      <HeaderNav cartCount={cartCount} active="home"/>
       <Container sx={{ mt:'40vh' }}>
         <img className="bg" key={0} id="one" src={image1} alt="test"/>
-        <Typography variant="h2" sx={{ fontWeight:'bold', position:'relative', color:'text.secondary', filter:'drop-shadow(4px 6px 10px black)' }}>be remembered.</Typography>
+        <Typography variant="h2" sx={{ fontWeight:'bold', position:'relative', color:'#FFFFFF', filter:'drop-shadow(4px 6px 10px black)' }}>be remembered.</Typography>
         <Typography variant="h1" sx={{ fontWeight:'bold', position:'relative', color:'secondary.main', filter:'drop-shadow(4px 6px 10px black)'}}>choose your requiem.</Typography>
         <Button variant='outlined' size='large' sx={{ my:4 }} color='info'><Typography variant="h6"><Link to='/shop' style={{ color:'#FFFFFF'}}>SHOP NOW</Link></Typography></Button>
       </Container>
@@ -102,12 +137,36 @@ function Home() {
   )
 }
 
-function Shop() {
+function Shop(props) {
+  const { cartCount } = props
+  const [newCart, setNewCart] = useState([])
+
   return (
-    <div>
-      <HeaderNav cartCount={2} active="shop"/>
-      Shop
-    </div>
+    <>
+      <HeaderNav cartCount={cartCount} active="shop"/>
+      <Container sx={{ display:'flex', justifyContent:'center', my:6, flexWrap:'wrap'}}>
+        {products.map(product => {
+          return <Card sx={{ maxWidth:345, m:2, width:'100%', borderRadius:0}} key={product.id}>
+            <CardActionArea>
+              <CardMedia
+                component='img'
+                height='350'
+                image={product.imageUrl}
+                alt={product.name}
+              />
+              <CardContent>
+                <Typography gutterBottom variant="h5" component="div">
+                  {product.name}
+                </Typography>
+                <Typography variant="body2">
+                  P {product.price} from {product.collection} collection
+                </Typography>
+              </CardContent>
+            </CardActionArea>
+          </Card>
+        })}
+      </Container>    
+    </>
   )
 }
 
@@ -129,10 +188,11 @@ function Checkout() {
   )
 }
 
-function Lookbook() {
+function Lookbook(props) {
+  const { cartCount } = props
   return (
     <>
-      <HeaderNav cartCount={2} active="lookbook"/>
+      <HeaderNav cartCount={cartCount} active="lookbook"/>
       <Container>
         <p>
           Lorem ipsum dolor sit amet, consectetur adipiscing elit. Phasellus pretium accumsan felis, id sagittis turpis tristique dignissim. Suspendisse iaculis cursus tortor, eget interdum mauris tincidunt eu. Etiam suscipit finibus libero. Donec dictum nibh arcu, ac fermentum nibh auctor eget. Integer tristique, nibh eu ornare placerat, urna quam fermentum turpis, non imperdiet arcu diam vel ex. In hac habitasse platea dictumst. Curabitur a varius augue.
