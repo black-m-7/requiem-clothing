@@ -4,7 +4,7 @@ import image1 from './assets/1.jpg'
 import boxLogo from './assets/box-logo.png'
 import logoV2 from './assets/logo-v2.png'
 import mercurial from './assets/mercurial.png'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { 
   BrowserRouter,
   Routes,
@@ -19,9 +19,18 @@ import {
   CardContent,
   CardMedia,
   Container,
+  Modal,
+  Input,
+  TextField,
   Typography,
   Toolbar } from '@mui/material'
 import { createTheme, ThemeProvider } from '@mui/material/styles'
+import { AddIcon } from '@mui/icons-material';
+import { auth, db, storage } from './firebase'
+import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth'
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
+import { collection, addDoc, query, getDocs } from 'firebase/firestore'
+
 
 const theme = createTheme({
   palette: {
@@ -41,29 +50,6 @@ const theme = createTheme({
   }
 })
 const pages = ['home', 'shop', 'lookbook']
-const products = [
-  {
-    id: '001',
-    name: 'BOX LOGO',
-    collection: 'basic',
-    imageUrl: boxLogo,
-    price: 570
-  },
-  {
-    id: '002',
-    name: 'LOGO V2',
-    collection: 'basic',
-    imageUrl: logoV2,
-    price: 470
-  },
-  {
-    id: '003',
-    name: 'MERCURIAL',
-    collection: 'statement',
-    imageUrl: mercurial,
-    price: 570
-  }
-]
 
 function App() {
   const cart = JSON.parse(localStorage.getItem('cart')) || []
@@ -78,12 +64,119 @@ function App() {
             <Route path="/lookbook" element={<Lookbook cartCount={cart.length}/>}/>
             <Route path="/cart" element={<Cart/>}/>
             <Route path="/checkout" element={<Checkout/>}/>
+            <Route path="/admin" element={<Admin/>}/>
           </Routes>
         </BrowserRouter>
         
       </div>
     </ThemeProvider>
   );
+}
+
+function Admin() {
+  const [user, setUser] = useState(null)
+  const [open, setOpen] = useState(false);
+  const [imageUrl, setImageUrl] = useState("")
+  const [productName, setProductName] = useState("")
+  const [productCollection, setProductCollection] = useState("")
+  const [productPrice, setProductPrice] = useState("")
+  const [image, setImage] = useState(null)
+  const handleOpen = () => setOpen(true);
+  const handleClose = () => setOpen(false);
+
+  const style = {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: 'translate(-50%, -50%)',
+    width: 600,
+    bgcolor: 'background.paper',
+    boxShadow: 24,
+    p: 4,
+  }
+  const inputStyle = {
+    mx: 4,
+    my:2
+  }
+
+  const onUploadImage = (e) => {
+    const reader = new FileReader()
+    let file = e.target.files[0]
+
+    if (file) {
+      reader.onload = () => {
+        if(reader.readyState === 2) {
+          setImage(file)
+        }
+      }
+      reader.readAsDataURL(e.target.files[0]);
+    } else {
+      setImage(null)
+    }
+  }
+
+  const uploadToFirebase = () => {
+    if (image && productName && parseFloat(productPrice) && productCollection) {
+      const storageRef = ref(storage, `/requiem-clothing/shop/${image.name}`)
+      uploadBytes(storageRef, image).then((snapshot) => {
+        getDownloadURL(ref(storage, `/requiem-clothing/shop/${image.name}`))
+          .then((url) => {
+            setImageUrl(url)
+            uploadToFirestore()
+            alert('Product added!')
+          })
+      })
+    } else {
+      alert('Please answer all fields.')
+    }
+  }
+
+  const uploadToFirestore = async () => {
+    await addDoc(collection(db, 'shop'), {
+      name: productName,
+      collection: productCollection,
+      price: parseFloat(productPrice),
+      imageUrl: imageUrl
+    })
+  }
+
+  return (
+    <>
+      {!user ?
+        <SignIn onSignIn={setUser}/> :
+        (<>
+          <Container sx={{m: 'auto', my:8, display:'flex'}}>
+            <Typography variant='h5'>Add product</Typography>
+            <Button variant='contained' sx={{mx:2}} onClick={handleOpen}>+</Button>
+            <Modal
+              open={open}
+              onClose={handleClose}>
+                <Box sx={style}>
+                  <TextField required value={productName} onChange={(e) => {setProductName(e.target.value)}} sx={inputStyle} label="Product Name" variant="filled"/>
+                  <TextField required value={productCollection} onChange={(e) => {setProductCollection(e.target.value)}} sx={inputStyle} label="Product Collection" variant="filled"/>
+                  <TextField required value={productPrice} onChange={(e) => {setProductPrice(e.target.value)}} sx={inputStyle} label="Product Price" variant="filled"/>
+                  <Input required sx={{my:3}} type='file' onChange={onUploadImage}></Input>
+                  <Button variant='contained' sx={{m:2, mx:4}} onClick={uploadToFirebase}>ADD</Button>
+                </Box>
+            </Modal>
+          </Container>
+        </>)}
+    </>
+  )
+}
+
+function SignIn(props) {
+  const signInWithGoogle = () => {
+    const provider = new GoogleAuthProvider()
+    signInWithPopup(auth, provider)
+      .then((res) => {
+        props.onSignIn(res.user)
+      })
+  }
+
+  return (
+    <Button onClick={signInWithGoogle} variant='contained' size='large' sx={{ m:4 }}>Sign in with Google</Button>
+  )
 }
 
 function HeaderNav(props) {
@@ -140,6 +233,19 @@ function Home(props) {
 function Shop(props) {
   const { cartCount } = props
   const [newCart, setNewCart] = useState([])
+  const [products, setProducts] = useState([])
+
+  useEffect(() => {
+    const getProducts = async () => {
+      const querySnapshot = await getDocs(collection(db, 'shop'))
+      setProducts(querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })))
+    }
+    getProducts()
+  }, [products]);
+  
 
   return (
     <>
@@ -159,7 +265,7 @@ function Shop(props) {
                   {product.name}
                 </Typography>
                 <Typography variant="body2">
-                  P {product.price} from {product.collection} collection
+                  P {product.price}
                 </Typography>
               </CardContent>
             </CardActionArea>
